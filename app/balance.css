@@ -1,0 +1,28 @@
+/* 💰 upbit.balance — 업비트 잔고 조회 패널 (조회 전용) */
+.bal-body { display: grid; gap: 10px; }
+.bal-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.bal-time { color: var(--ink-faint); font-size: 10px; font-weight: 700; }
+.bal-refresh { width: 100%; min-height: 40px; }
+
+.bal-error { padding: 8px 10px; border: 2px dashed var(--down); border-radius: 8px; background: #1a0d14; font-size: 11px; line-height: 1.5; }
+
+.bal-total {
+  display: grid; gap: 2px; padding: 10px 12px;
+  border: 2px solid #1f5a49; border-radius: 8px; background: #0c2420;
+  box-shadow: 0 0 12px rgba(57, 255, 159, .15);
+}
+.bal-total span { color: var(--ink-soft); font-size: 9px; font-weight: 800; }
+.bal-total b { color: var(--pink); font-family: "JetBrains Mono", monospace; font-size: 22px; text-shadow: 0 0 10px rgba(57, 255, 159, .45); }
+.bal-total small { color: var(--ink-soft); font-family: "JetBrains Mono", monospace; font-size: 10px; }
+
+.bal-pnl { margin: 0; font-size: 11px; font-weight: 700; }
+.bal-pnl b { font-family: "JetBrains Mono", monospace; }
+
+.bal-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.bal-table th, .bal-table td { padding: 4px 6px; border-bottom: 1px dashed var(--pink-line); text-align: right; }
+.bal-table th:first-child, .bal-table td:first-child { text-align: left; }
+.bal-table th { color: var(--ink-soft); font-size: 10px; }
+.bal-table td { font-family: "JetBrains Mono", monospace; }
+.bal-table td small { display: block; color: var(--ink-faint); font-size: 9px; }
+
+.bal-note { margin: 0; color: var(--ink-faint); font-size: 10px; }

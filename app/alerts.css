@@ -1,0 +1,44 @@
+/* 🔔 alerts — 중요 알림 + 자동 운영 스위치 */
+.al-card .win-bar { background: linear-gradient(90deg, #2a2108, #0c2a26); color: var(--amber); text-shadow: 0 0 8px rgba(255, 209, 102, .45); }
+.al-body { display: grid; gap: 9px; }
+.al-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.al-switch {
+  padding: 6px 12px; border: 2px solid var(--line); border-radius: 999px; background: var(--panel);
+  color: var(--ink-soft); font-size: 11px; font-weight: 900; cursor: pointer;
+}
+.al-switch.on { border-color: var(--pink); background: #0c2420; color: var(--pink); box-shadow: 0 0 12px rgba(57, 255, 159, .3); }
+.al-step { color: var(--ink-soft); font-size: 10px; font-weight: 800; }
+.al-perm {
+  padding: 7px 10px; border: 1.5px dashed var(--pink-deep); border-radius: 8px; background: transparent;
+  color: var(--pink-deep); font-size: 11px; font-weight: 800; cursor: pointer; text-align: left;
+}
+.al-hint { margin: 0; color: var(--ink-faint); font-size: 10px; line-height: 1.5; }
+
+.al-best { display: grid; gap: 2px; padding: 8px 10px; border: 2px solid var(--pink); border-radius: 8px; background: #0c2420; box-shadow: 0 0 12px rgba(57, 255, 159, .2); }
+.al-best span { color: var(--ink-soft); font-size: 9px; font-weight: 800; }
+.al-best b { color: var(--pink); font-family: "JetBrains Mono", "Noto Sans KR", monospace; font-size: 12px; }
+.al-best small { color: var(--ink-faint); font-size: 9px; }
+
+.al-list { display: grid; gap: 6px; max-height: 260px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.al-list li { padding: 7px 9px; border: 1.5px solid var(--line); border-left-width: 4px; border-radius: 6px; background: var(--panel); }
+.al-list li.good { border-left-color: var(--pink); }
+.al-list li.warn { border-left-color: var(--amber); }
+.al-list li.bad { border-left-color: var(--down); }
+.al-list li.info { border-left-color: var(--pink-deep); }
+.al-list b { display: block; font-size: 12px; }
+.al-list p { margin: 2px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.45; white-space: pre-line; word-break: keep-all; }
+.al-list small { color: var(--ink-faint); font-family: "JetBrains Mono", monospace; font-size: 9px; }
+.al-clear { justify-self: end; border: 0; background: none; color: var(--ink-faint); font-size: 10px; text-decoration: underline; cursor: pointer; }
+
+/* 🎯 타겟 코인별 상태 */
+.al-coins { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.al-coins-title { grid-column: 1 / -1; color: var(--ink-soft); font-size: 10px; font-weight: 900; }
+.al-coin { display: grid; grid-template-columns: 1fr auto; gap: 1px 6px; padding: 6px 8px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--panel); }
+.al-coin b { font-size: 12px; }
+.al-coin em { font-size: 10px; font-style: normal; font-weight: 900; color: var(--ink-faint); }
+.al-coin small { grid-column: 1 / -1; overflow: hidden; color: var(--ink-faint); font-family: "JetBrains Mono", "Noto Sans KR", monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.al-coin.pass { border-color: #1f5a49; background: #0c2420; }
+.al-coin.pass em { color: var(--pink); }
+.al-coin.fail em { color: var(--amber); }
+.al-coin.none em { color: var(--down); }
+.al-coin.busy em { color: var(--pink-deep); animation: blinkDot .9s steps(2) infinite; }

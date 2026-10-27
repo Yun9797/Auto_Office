@@ -1,0 +1,88 @@
+/* 🧪 backtest.lab — auto-risk 백테스트 연결 패널 */
+.bt-body { display: grid; gap: 10px; }
+.bt-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.bt-hint { color: var(--ink-faint); font-size: 10px; font-weight: 700; }
+
+.bt-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.bt-form label { display: grid; gap: 3px; color: var(--ink-soft); font-size: 10px; font-weight: 800; }
+.bt-form label.wide { grid-column: 1 / -1; }
+.bt-form input, .bt-form select {
+  width: 100%; min-width: 0; height: 30px; padding: 0 7px;
+  border: 2px solid var(--line); border-radius: 8px; background: var(--win);
+  color: var(--ink); font: inherit; font-size: 12px; font-weight: 700;
+}
+
+.bt-actions { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.bt-actions .btn-primary { min-height: 40px; }
+
+.bt-error { padding: 8px 10px; border: 2px dashed var(--pink-deep); border-radius: 8px; background: var(--win); font-size: 11px; line-height: 1.5; }
+.bt-error pre { max-height: 120px; margin: 6px 0 0; overflow: auto; white-space: pre-wrap; font-size: 10px; color: var(--ink-soft); }
+
+.bt-result { display: grid; gap: 8px; }
+.bt-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.bt-tabs button {
+  padding: 3px 8px; border: 2px solid var(--line); border-radius: 999px; background: var(--win);
+  color: var(--ink); font-size: 10px; font-weight: 800; cursor: pointer;
+}
+.bt-tabs button.on { background: var(--pink); color: var(--on-accent); }
+.bt-period { margin: 0; color: var(--ink-soft); font-size: 10px; font-weight: 700; }
+
+.bt-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.bt-kpis div { padding: 6px 8px; border: 2px solid var(--line); border-radius: 8px; background: var(--yellow); }
+.bt-kpis div:nth-child(n + 3) { background: var(--win); }
+.bt-kpis span { display: block; color: var(--ink-soft); font-size: 9px; font-weight: 800; }
+.bt-kpis b { font-size: 13px; }
+
+.bt-curve { width: 100%; height: 110px; border: 2px solid var(--line); border-radius: 8px; background: var(--win); }
+.bt-curve path { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.bt-curve .strategy { stroke: var(--pink-deep); }
+.bt-curve .hold { stroke: #a78bfa; stroke-dasharray: 4 3; }
+.bt-curve .base { stroke: var(--ink-faint); stroke-width: 1; stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.bt-legend { display: flex; align-items: center; gap: 5px; margin: -2px 0 0; color: var(--ink-soft); font-size: 10px; font-weight: 700; }
+.bt-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; }
+.bt-legend i.s { background: var(--pink-deep); }
+.bt-legend i.h { margin-left: 6px; background: #a78bfa; }
+
+.bt-years { width: 100%; border-collapse: collapse; font-size: 11px; }
+.bt-years th, .bt-years td { padding: 3px 6px; border-bottom: 1px dashed var(--pink-line); text-align: right; }
+.bt-years th:first-child, .bt-years td:first-child { text-align: left; }
+.bt-years th { color: var(--ink-soft); font-size: 10px; }
+
+.bt-pooled { margin: 0; font-size: 11px; font-weight: 700; }
+.bt-note { margin: 0; color: var(--ink-faint); font-size: 10px; line-height: 1.5; }
+
+/* 다크 테마 보정 */
+.bt-kpis div { background: #0b1322; }
+.bt-kpis div:nth-child(-n + 2) { background: #0c2420; border-color: #1f5a49; }
+.bt-kpis b { font-family: "JetBrains Mono", monospace; }
+.bt-curve { background: #070d18; }
+.bt-curve .strategy { stroke: var(--pink); filter: drop-shadow(0 0 3px rgba(57, 255, 159, .6)); }
+.bt-legend i.s { background: var(--pink); }
+.bt-years td { font-family: "JetBrains Mono", monospace; }
+
+/* 목표(월 1~3%) 판정 카드 */
+.bt-verdict {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px;
+  padding: 8px 10px; border: 2px solid var(--line); border-radius: 8px; background: #0b1322;
+}
+.bt-verdict span { display: block; color: var(--ink-soft); font-size: 9px; font-weight: 800; }
+.bt-verdict b { font-family: "JetBrains Mono", monospace; font-size: 20px; }
+.bt-verdict em {
+  padding: 3px 8px; border: 1.5px solid currentColor; border-radius: 999px;
+  font-size: 11px; font-style: normal; font-weight: 900; white-space: nowrap;
+}
+.bt-verdict small { grid-column: 1 / -1; color: var(--ink-faint); font-size: 9px; }
+.bt-verdict.pass { border-color: var(--pink); box-shadow: 0 0 12px rgba(57, 255, 159, .25); }
+.bt-verdict.pass em { color: var(--pink); }
+.bt-verdict.high em { color: var(--amber); }
+.bt-verdict.high { border-color: #6b5a1c; }
+.bt-verdict.low em { color: var(--ink-soft); }
+.bt-verdict.risk { border-color: #6b2333; }
+.bt-verdict.risk em { color: var(--down); }
+
+/* 🎯 타겟 코인 칩 */
+.bt-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; grid-column: 1 / -1; }
+.bt-targets span { padding: 2px 8px; border: 1.5px solid var(--line); border-radius: 999px; color: var(--ink-faint); font-size: 10px; font-weight: 800; }
+.bt-targets span.on { border-color: var(--pink); color: var(--pink); }
+.bt-targets button { margin-left: auto; padding: 3px 9px; border: 1.5px solid var(--pink-deep); border-radius: 999px; background: transparent; color: var(--pink-deep); font-size: 10px; font-weight: 900; cursor: pointer; }
+.bt-targets button:disabled { opacity: .4; cursor: default; }

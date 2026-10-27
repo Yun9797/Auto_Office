@@ -1,0 +1,25 @@
+/* 📒 history — 날짜별 기록 */
+.hi-body { display: grid; gap: 8px; }
+.hi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.hi-hint { margin: 0; color: var(--ink-faint); font-size: 10px; line-height: 1.5; }
+.hi-reload { padding: 3px 9px; border: 1.5px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink-soft); font-size: 10px; font-weight: 800; cursor: pointer; }
+
+.hi-trend { width: 100%; height: 46px; border: 1.5px solid var(--line); border-radius: 6px; background: #070d18; }
+.hi-trend path { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.hi-trend.up path { stroke: var(--up); filter: drop-shadow(0 0 3px rgba(57, 255, 159, .6)); }
+.hi-trend.down path { stroke: var(--down); }
+
+.hi-list { display: grid; gap: 5px; max-height: 300px; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.hi-list li { padding: 6px 8px; border: 1.5px solid var(--line); border-radius: 6px; background: var(--panel); }
+.hi-row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; gap: 6px; align-items: baseline; }
+.hi-date { color: var(--pink-deep); font-family: "JetBrains Mono", monospace; font-size: 11px; }
+.hi-bal { overflow: hidden; font-family: "JetBrains Mono", monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.hi-bal em { font-style: normal; font-size: 10px; }
+.hi-alerts { font-size: 10px; white-space: nowrap; }
+.hi-strat { margin: 3px 0 0; color: var(--ink-soft); font-size: 10px; line-height: 1.45; }
+.hi-strat .pass { color: var(--up); font-weight: 900; }
+.hi-strat .fail { color: var(--amber); font-weight: 900; }
+.hi-coins { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 0; }
+.hi-coins span { padding: 0 6px; border-radius: 999px; font-size: 9px; font-weight: 800; }
+.hi-coins .pass { background: #0c2420; color: var(--up); }
+.hi-coins .fail { background: #241f0c; color: var(--amber); }
