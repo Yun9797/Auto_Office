@@ -18,9 +18,10 @@
 7. **목표 기준: 월평균(복리) 수익 1~3% + 최대낙폭(MDD) 35% 이내** (`app/backtestLink.ts` 의 `TARGET`)
 8. 업비트 API 키를 `.dev.vars` 에 넣음 → **잔고 조회만** 연결 (💰 upbit.balance, 주문 기능 없음 — 사용자 요청 전까지 추가 금지)
 9. **자동 운영**: "오늘 업무 시작하기" 한 번 → 잔고 확인 → 타겟 코인 × 조합 전략 탐색 → 자동 결재 → 하루 요약. **중요 알림만** 🔔 alerts 패널 + 데스크톱 알림. 탭을 숨겨도 계속 돌아감
-10. 타겟 코인: **비트코인(KRW-BTC) · 이더리움(KRW-ETH) · 두들즈(KRW-DOOD) · 아이리스(KRW-IRYS)** (`AUTOPILOT.coins`)
+10. 타겟 코인: **비트코인(KRW-BTC)** 하나 (`AUTOPILOT.coins`)
 11. 시세 데이터 **이어 붙이기** 방식 (새 봉만 추가, 진행 중 봉 제외) — `bridge/run_backtest.py` 의 `update_cache`
 12. 결과 **날짜별 기록**: `records/{search,balance,alert}.jsonl` + 📒 history 패널, 새로고침 후 오늘 알림·TOP1 복원
+13. **실시간 시세 + 모의투자**: 자동 결재 TOP1 → 서버가 30초마다 업비트 시세로 가상 매수·매도 (📝 paper.trade 패널, `records/paper.jsonl`). 실제 주문 없음
 13. 하이드레이션 오류 수정 (알림 권한 초기값)
 14. 백테스트 기본 대상을 타겟 4개로, 화면에 코인별 결과 표시
 

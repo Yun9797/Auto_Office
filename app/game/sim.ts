@@ -128,7 +128,7 @@ export type Snapshot = {
 const PHASES = [
   "출근 대기",
   "07:00 전사 출근",
-  "시장 리서치",
+  "모의투자 점검",
   "시세 데이터 점검",
   "전략 후보 10개",
   "백테스트 검증",
@@ -138,15 +138,15 @@ const PHASES = [
   "모델 학습·대시보드",
   "결과 저장·성과 분석",
   "김비서 브리핑",
-  "업무 종료",
+  "점검 완료 · 근무 대기",
 ];
 
 const BLOCKED_DEPTS = new Set(["brand", "partner", "finance"]);
 
 /** 연동 대기 부서가 멈춰 있는 진짜 이유 */
 const BLOCK_REASON: Record<string, string> = {
-  brand: "실시간 시세 연동 전이라 지금 가격은 못 읽어요. 없는 숫자를 만들지는 않습니다. 백테스트용 과거 데이터는 지시창에서 바로 돌릴 수 있어요.",
-  partner: "거래소 API 키 연동 전이라 주문을 못 넣어요. 연결돼도 모의투자부터 시작합니다.",
+  brand: "업비트 실시간 시세를 아직 확인 못 했어요. 점검이 끝나면 완료로 바뀌어요. 없는 숫자를 만들지는 않습니다.",
+  partner: "업비트 공개 API 점검 전이에요. 주문 기능은 일부러 없고 모의투자만 해요.",
   finance: "계좌 내역이 아직 안 왔어요. 파일만 주시면 수수료까지 빼서 손익을 정리합니다.",
 };
 
@@ -156,7 +156,7 @@ const DEPT_KEYWORDS: [string, string[]][] = [
   ["brand", ["시세", "데이터팀", "인텔", "박보라"]],
   ["strategy1", ["전략 설계", "설계팀", "전략 1", "기획", "아이디어", "최아름", "톱3", "top 3"]],
   ["strategy2", ["개발팀", "개발", "코드", "한도빈"]],
-  ["research", ["시장 리서치", "리서치", "조사팀", "뉴스", "김서연"]],
+  ["research", ["모의투자 감시", "감시팀", "감시", "리서치", "김서연"]],
   ["reels", ["모델팀", "ai 모델", "모델", "학습", "송리원"]],
   ["carousel", ["대시보드팀", "대시보드", "차트", "화면", "이가림"]],
   ["partner", ["거래소", "api", "주문", "모의투자", "정파랑"]],
@@ -387,45 +387,45 @@ export class Company {
 
     // ② 시장조사
     this.phaseIndex = 2;
-    yield* this.runDept("research", "뉴스·경제지표 수집", 6.5, "오늘 시장에 영향 줄 이슈 5개 뽑았어요.");
+    yield* this.runDept("research", "모의투자 성적 점검", 6.5, "모의투자 성적 점검했어요. 자세한 건 채팅에 올렸어요.");
 
     // ③ 브랜드 분석 — 연동 대기라 라운지로
     this.phaseIndex = 3;
     const bora = this.agentById.get("brand-lead")!;
     this.stand(bora);
-    this.say(bora, "실시간 시세는 미연동이라 지어내지 않아요.", 3);
-    this.pushLog("🧬", "시세 데이터팀: 실시간 시세 미연동 → 과거 데이터(업비트 캐시)만 사용", "lav");
+    this.say(bora, "업비트 실시간 시세 점검할게요.", 3);
+    this.pushLog("🧬", "시세 데이터팀: 업비트 실시간 시세 점검 시작 (결과는 채팅)", "lav");
     this.goto(bora, rand(LOUNGE_ROOM.loiter), "휴식");
-    this.enqueue(bora, { k: "wait", dur: 4 }, { k: "fn", fn: () => this.say(bora, "백테스트 데이터는 준비돼 있어요.", 2.4) });
+    this.enqueue(bora, { k: "wait", dur: 4 }, { k: "fn", fn: () => this.say(bora, "시세 점검 결과 채팅에 올렸어요.", 2.4) });
     this.sitAtDesk(bora);
-    this.pushLog("💌", "거래소 연동팀·손익팀: API 키·계좌 내역 연동 전이라 오늘은 대기합니다.", "lav");
+    this.pushLog("💌", "거래소 연동팀: 업비트 공개 API·투자유의 점검 (주문 기능은 없음)", "lav");
 
     // ④ 회의 1 — 시장조사 → 전략1 → QA 인수인계
     yield* this.meeting(
       "오늘의 전략 후보 인수인계",
       ["research-lead", "strategy1-lead", "qa-lead"],
       [
-        ["research-lead", "오늘 이슈 5개예요. 금리 발표 일정도 표시해뒀어요."],
-        ["strategy1-lead", "좋아요. 매매 전략 후보 10개로 풀게요."],
-        ["qa-lead", "나오면 수수료 넣고 백테스트부터 돌릴게요."],
+        ["research-lead", "모의투자 성적은 채팅에 올렸어요. 백테스트 기대치랑 비교해 보세요."],
+        ["strategy1-lead", "좋아요. 모의투자 전략 주변까지 탐색 조합 짤게요."],
+        ["qa-lead", "조합 나오면 수수료 넣고 전부 돌릴게요."],
       ],
     );
 
     // ⑤ 아이디어 10개
     this.phaseIndex = 4;
-    yield* this.runDept("strategy1", "전략 후보 10개 · 진입/청산 조건 설계", 7, "10개 만들었고 평균 78점이에요.");
+    yield* this.runDept("strategy1", "탐색 조합 설계 · 이평·손절 값 고르기", 7, "조합 짰어요. 자세한 건 채팅에 올렸어요.");
 
     // ⑥ 브랜드 QA
     this.phaseIndex = 5;
-    yield* this.runDept("qa", "백테스트·과적합·손실 한도 검사", 5.5, "3개 반려, 7개 통과예요.");
-    this.pushLog("🛡️", "검증 반려 3건: 월 1% 미달 / MDD 35% 초과 / 월 3% 초과(과적합 의심)", "lav");
+    yield* this.runDept("qa", "백테스트·과적합·손실 한도 검사", 5.5, "조합 전부 돌렸어요. 결과는 채팅에 있어요.");
+    this.pushLog("🛡️", "검증 기준: 월 1% 미달 / MDD 35% 초과 / 월 3% 초과(과적합 의심)는 반려", "lav");
 
     // ⑦ TOP 3 선정
     this.phaseIndex = 6;
     const areum = this.agentById.get("strategy1-lead")!;
     this.stand(areum);
-    this.say(areum, "TOP 3 정리했어요. 1위는 92점!", 3);
-    this.pushLog("💡", "전략 설계팀: TOP 3 확정 (1위 92점 · BTC 이평 추세추종)", "pink");
+    this.say(areum, "통과 후보 정리했어요. AI 모델팀이 과적합 검사 중!", 3);
+    this.pushLog("💡", "전략 설계팀: 통과 후보 정리 → AI 모델팀 과적합 검사", "pink");
     yield 1.8;
     this.sitAtDesk(areum);
 
@@ -457,7 +457,7 @@ export class Company {
     );
     yield this.allFree([...approvers, ceo]);
 
-    this.say(approvers[0], "TOP 1은 'BTC 20/60 이평 + 손절 8%' 92점이에요.", 3.4);
+    this.say(approvers[0], "과적합 검사까지 통과한 전략을 올렸어요.", 3.4);
     yield 2.4;
     this.say(approvers[2], "대표님, 오늘 결정하실 건 이거 하나예요.", 3.2);
     yield 2.2;
@@ -469,7 +469,7 @@ export class Company {
     this.approvalPending = false;
     this.meetingTitle = null;
     this.say(ceo, "승인! 이대로 갑시다.", 2.8);
-    this.pushLog("✅", "대표 승인 완료 — TOP 1 전략 구현을 시작합니다.", "mint");
+    this.pushLog("✅", "대표 승인 완료 — 결재 전략을 모의투자에 적용합니다.", "mint");
     yield 1.6;
     for (const agent of approvers) {
       this.releaseSeat(agent);
@@ -483,24 +483,24 @@ export class Company {
 
     // ⑨ 전략 코드 구현
     this.phaseIndex = 8;
-    yield* this.runDept("strategy2", "승인 전략 코드 구현", 7, "매매 엔진 붙였고 테스트 전부 통과했어요.");
+    yield* this.runDept("strategy2", "모의투자 엔진 적용 점검", 7, "적용 점검 결과 채팅에 올렸어요.");
 
     // ⑩ 인수인계 → 모델 학습·대시보드 동시 작업
     this.phaseIndex = 9;
-    yield* this.deliver("strategy2-lead", "reels", "신호 로직 넘길게요. 미래 데이터는 안 써요.", "받았어요! 예측 모델로 신호 보강해볼게요.");
-    yield* this.deliver("strategy2-lead", "carousel", "모니터링할 지표 목록이에요!", "수익 곡선이랑 낙폭부터 그릴게요.");
+    yield* this.deliver("strategy2-lead", "reels", "적용 끝났어요. 과적합 검사 결과 정리 부탁해요.", "받았어요! 주변 조합 결과 정리할게요.");
+    yield* this.deliver("strategy2-lead", "carousel", "모의투자 지표 넘길게요!", "가상 자산 추이 그래프 갱신할게요.");
 
-    this.startDept("reels", "예측 모델 학습·검증", 8);
-    this.startDept("carousel", "모니터링 대시보드 제작", 8);
+    this.startDept("reels", "과적합 검사 결과 정리", 8);
+    this.startDept("carousel", "모의투자 그래프 갱신", 8);
     yield () => this.deptStatus.reels === "완료" && this.deptStatus.carousel === "완료";
-    this.pushLog("🎬", "모델 학습 1건 · 대시보드 화면 완성 (실전 주문은 아직 꺼둠)", "mint");
+    this.pushLog("🎬", "과적합 검사 정리 · 모의투자 그래프 갱신 (실전 주문은 꺼둠)", "mint");
 
     // ⑪ 저장 + 성과 기록
     this.phaseIndex = 10;
     this.startDept("ops", "결과 저장·봇 스케줄 점검", 5);
     this.startDept("review", "수익률·낙폭 분석", 5);
     yield () => this.deptStatus.ops === "완료" && this.deptStatus.review === "완료";
-    this.pushLog("📦", "오늘 산출물 저장 완료 — 전략 코드 1건 · 분석 리포트 1건", "mint");
+    this.pushLog("📦", "오늘 결과 기록 저장 완료 (records 폴더)", "mint");
 
     // ⑫ 김비서 브리핑
     this.phaseIndex = 11;
@@ -526,7 +526,7 @@ export class Company {
     this.phaseIndex = 12;
     this.dayComplete = true;
     this.running = false;
-    this.pushLog("🌙", "오늘 업무 종료. 봇은 꺼둔 채로 직원들이 라운지로 이동합니다.", "yellow");
+    this.pushLog("🔁", "이번 점검 끝. 퇴근 버튼 전까지 자리를 지켜요 (모의투자는 계속).", "yellow");
 
     for (const agent of workers) {
       if (Math.random() < 0.45) {

@@ -5,6 +5,7 @@ import { sites } from "./build/sites-vite-plugin";
 import { backtest } from "./build/backtest-vite-plugin";
 import { upbit } from "./build/upbit-vite-plugin";
 import { records } from "./build/records-vite-plugin";
+import { paper } from "./build/paper-vite-plugin";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
@@ -54,6 +55,7 @@ export default defineConfig(async () => {
       backtest(),
       upbit(),
       records(),
+      paper(),
       vinext(),
       sites(),
       cloudflare({

@@ -58,11 +58,11 @@ export const CEO_PROFILE = {
 export const DEPARTMENTS = [
   {
     id: "research",
-    name: "시장 리서치팀",
-    short: "market.lab",
-    icon: "🔎",
-    task: "뉴스·경제지표·이슈 수집",
-    report: "출처를 확인하고 오늘 시장에 영향 줄 이슈만 추려요.",
+    name: "모의투자 감시팀",
+    short: "paper.watch",
+    icon: "👀",
+    task: "모의투자 성적 점검 · 백테스트 기대치와 비교",
+    report: "모의투자가 백테스트만큼 나오는지, 낙폭이 기준 안인지 매일 확인해요.",
   },
   {
     id: "brand",
@@ -171,16 +171,16 @@ export type StaffEntry = {
 };
 
 export const STAFF_LIST: StaffEntry[] = [
-  // ① 시장 리서치팀
-  { dept: "research", rank: "lead", name: "김서연", role: "시장 리서치 팀장", callsign: "김리서",
+  // ① 모의투자 감시팀
+  { dept: "research", rank: "lead", name: "김서연", role: "모의투자 감시 팀장", callsign: "김감시",
     colors: ["#6b3d34", "#fff3b0", "#ff8fc0"],
-    thoughts: ["이 뉴스, 공식 발표 맞는지 확인해야 해.", "금리 발표일은 따로 표시해두자.", "소문은 데이터로 안 쳐요."] },
-  { dept: "research", rank: "member", name: "오태윤", role: "뉴스 리서처",
+    thoughts: ["백테스트랑 실제가 얼마나 차이 나는지 보자.", "낙폭 35% 넘으면 바로 보고.", "한 달은 지켜봐야 판단할 수 있어요."] },
+  { dept: "research", rank: "member", name: "오태윤", role: "가상 거래 기록 점검",
     colors: ["#2f2a3d", "#c9b8ff", "#b8f0dd"],
-    thoughts: ["헤드라인만 보고 판단하면 안 돼.", "이미 가격에 반영된 뉴스인지 보자."] },
-  { dept: "research", rank: "member", name: "하은채", role: "경제지표 조사",
+    thoughts: ["가상 매수·매도 기록 빠진 거 없나.", "손절이 규칙대로 됐는지 확인."] },
+  { dept: "research", rank: "member", name: "하은채", role: "백테스트 비교 분석",
     colors: ["#8a4a3c", "#b8f0dd", "#ff8fc0"],
-    thoughts: ["이번 주 발표 일정부터 정리.", "예상치랑 실제치 차이가 핵심이에요."] },
+    thoughts: ["그냥 들고 있었을 때보다 나은가?", "기대 수익이랑 실제 수익 차이가 핵심이에요."] },
 
   // ② 시세 데이터팀
   { dept: "brand", rank: "lead", name: "박보라", role: "시세 데이터 팀장", callsign: "박브리",
@@ -319,7 +319,7 @@ export const AUTOPILOT = {
   /** false 로 바꾸면 예전처럼 대표가 직접 승인 버튼을 눌러야 합니다 */
   enabled: true,
   /** 전략 탐색할 코인 (업비트 원화마켓 티커) */
-  coins: ["KRW-BTC", "KRW-ETH", "KRW-DOOD", "KRW-IRYS"], // 비트코인 · 이더리움 · 두들즈 · 아이리스
+  coins: ["KRW-BTC"], // 비트코인
   /** "day" = 일봉, "4h" = 4시간봉 */
   interval: "day" as "day" | "4h",
   /** 탐색할 조합 — 단기·장기 이동평균(봉 개수), 손절 비율. 각 최대 8개 */
@@ -330,4 +330,19 @@ export const AUTOPILOT = {
   },
   /** 보유 코인 수익률이 이 값(%) 아래로 떨어져 있으면 중요 알림 */
   lossAlertPct: -8,
+  /** 근무 중(출근 ~ 퇴근 버튼)에 노션·디스코드 보고서를 자동 발행하는 간격 (시간) */
+  reportEveryHours: 6,
+  /** 근무 중 정기 점검 간격 (시간) — 잔고·모의투자·시세·전략 탐색·과적합 검사·적용 확인을 한 바퀴 */
+  checkEveryHours: 1,
+};
+
+/**
+ * 모의투자 — 진짜 돈은 쓰지 않고 "샀다고 치자"를 기록만 합니다. (실제 주문 기능 없음)
+ * 자동 결재 때 TOP1 전략이 여기로 넘어가고, 서버가 켜져 있는 동안 30초마다 실시간 시세로 판단합니다.
+ */
+export const PAPER = {
+  /** false 로 바꾸면 자동 결재 때 모의투자에 전략을 넘기지 않습니다 (패널 버튼으로는 가능) */
+  autoApply: true,
+  /** 처음 시작할 때 가상 자금 (원) */
+  capital: 10_000_000,
 };

@@ -611,3 +611,95 @@
 .roster-chip { color: var(--ink); }
 .roster-chip.on { color: var(--amber); }
 .todo-tab.urgent { color: var(--on-accent); }
+
+/* ── 오른쪽 줄: 탭 4개 + 사무실 옆에 고정 (페이지를 길게 내리지 않게) ── */
+.live-rail {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100vh - 24px);
+}
+.rail-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: var(--win);
+}
+.rail-tabs button {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 7px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.rail-tabs button:hover { color: var(--ink); background: var(--panel); }
+.rail-tabs button.on { color: var(--on-accent); background: var(--pink); box-shadow: 0 0 10px rgba(57, 255, 159, .35); }
+.rail-tabs button small { font-family: "JetBrains Mono", monospace; font-size: 9px; }
+.rail-tabs button.on small { color: var(--on-accent) !important; }
+.rail-dot {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  animation: blinkDot 1.1s steps(2) infinite;
+}
+.rail-pane {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+.rail-pane[hidden] { display: none; }
+
+.duty-badge {
+  padding: 8px 12px;
+  border: 2px solid #1f5a49;
+  border-radius: 6px;
+  background: #0c2420;
+  color: var(--pink);
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* 근무 중 다음 정기 점검·보고 시각 */
+.next-report {
+  padding: 4px 8px;
+  border: 1px dashed var(--pink-line);
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* 좁은 오른쪽 줄: 창 제목은 한 줄로 (길면 … 처리), 장식용 — ▢ ✕ 는 숨김 */
+.live-rail .win-bar { gap: 8px; }
+.live-rail .win-bar > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-rail .window-controls { display: none; }
+
+@media (max-width: 1100px) {
+  /* 한 줄로 쌓일 때는 고정하지 않고 탭만 쓴다 */
+  .live-rail { position: static; max-height: none; }
+  .rail-pane { overflow: visible; }
+}

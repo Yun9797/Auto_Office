@@ -6,9 +6,25 @@ import BacktestPanel from "./BacktestPanel";
 import BalancePanel from "./BalancePanel";
 import AlertsPanel from "./AlertsPanel";
 import HistoryPanel from "./HistoryPanel";
-import { askNotifyPermission, describe, newDay, onPhase, useAutopilot } from "./autopilot";
-import { fetchBalance, isBalanceOrder } from "./upbitLink";
-import { isBacktestOrder, parseBacktestOrder, runBacktest } from "./backtestLink";
+import PaperPanel from "./PaperPanel";
+import {
+  askNotifyPermission,
+  checkDue,
+  describe,
+  endDuty,
+  getAutopilot,
+  markReported,
+  newDay,
+  onPhase,
+  reportDue,
+  runCheckCycle,
+  startDuty,
+  useAutopilot,
+} from "./autopilot";
+import { fetchBalance, isBalanceOrder, signedPct, useUpbit } from "./upbitLink";
+import { refreshPaper, usePaper } from "./paperLink";
+import { withTrading } from "./tradingReport";
+import { isBacktestOrder, parseBacktestOrder, runBacktest, VERDICT_LABEL } from "./backtestLink";
 import OfficeWorld from "./game/OfficeWorld";
 import {
   buildReport,
@@ -20,7 +36,7 @@ import {
 import { Company, PHASES, type Agent, type DeptStatus, type Snapshot } from "./game/sim";
 import { CEO, DEPT_BRIEF, DEPT_LEAD, STAFF } from "./game/staff";
 import { DEPT_ROOMS } from "./game/world";
-import { COMPANY, STORAGE_LINK } from "../company.config";
+import { AUTOPILOT, COMPANY, STORAGE_LINK } from "../company.config";
 
 type View = "live" | "dashboard";
 
@@ -74,7 +90,6 @@ export default function Home() {
     result: null,
     error: "",
   });
-  const publishedRef = useRef(false);
 
   useEffect(() => {
     let raf = 0;
@@ -133,7 +148,9 @@ export default function Home() {
     async (auto: boolean) => {
       setPublishState((state) => ({ ...state, busy: true, error: "" }));
       try {
-        const result = await publish(buildReport(engine.snapshot()));
+        // 보고 직전에 모의투자 최신 상태를 받아 매매 결과를 덧붙인다
+        await refreshPaper(null);
+        const result = await publish(withTrading(buildReport(engine.snapshot())));
         setPublishState({ busy: false, result, error: "" });
 
         const parts: string[] = [];
@@ -161,34 +178,45 @@ export default function Home() {
     onPhase(engine, snap);
   }, [engine, snap]);
 
-  // 하루가 끝나면 자동으로 한 번 발행한다
+  // 근무 중(출근 ~ 퇴근 버튼): 정기 점검(기본 1시간)·보고서 발행(기본 6시간)을 알아서 — 탭을 숨겨도 30초마다 확인
   useEffect(() => {
-    if (snap.dayComplete && !publishedRef.current) {
-      publishedRef.current = true;
-      void sendReport(true);
-    }
-    if (!snap.dayComplete && snap.running) publishedRef.current = false;
-  }, [snap.dayComplete, snap.running, sendReport]);
+    const id = window.setInterval(() => {
+      if (checkDue(engine.snapshot())) void runCheckCycle(engine);
+      if (reportDue()) {
+        markReported();
+        void sendReport(true);
+      }
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, [engine, sendReport]);
 
   const askAgent = useCallback(
     (agent: Agent) => {
       engine.command(`${agent.name} 지금 뭐해?`);
       setSelectedId(null);
-      window.setTimeout(
-        () => document.getElementById("ceo-console")?.scrollIntoView({ behavior: "smooth", block: "center" }),
-        60,
-      );
+      showInRail("command", "ceo-console");
     },
     [engine],
   );
 
   const start = () => {
+    if (getAutopilot().onDuty) return; // 근무 중에는 정기 점검이 알아서 돈다
     newDay();
+    startDuty();
     void askNotifyPermission();
     engine.start();
     setBriefing(false);
     setView("live");
-    showToast("07:00 — AI 트레이딩 팀 32명이 출근합니다 📈");
+    showToast(
+      `출근! 퇴근 버튼 전까지 ${AUTOPILOT.checkEveryHours}시간마다 점검하고, 보고서는 ${AUTOPILOT.reportEveryHours}시간마다 올려요 📈`,
+    );
+  };
+
+  const goHome = () => {
+    endDuty(engine);
+    engine.reset();
+    setBriefing(false);
+    showToast("퇴근했어요 🌙 모의투자는 서버에서 계속 돌아가요");
   };
 
   const approve = () => {
@@ -238,10 +266,7 @@ export default function Home() {
               className={`todo-tab ${todo ? "urgent" : ""}`}
               onClick={() => {
                 setView("live");
-                window.setTimeout(
-                  () => document.getElementById("ceo-approval")?.scrollIntoView({ behavior: "smooth", block: "center" }),
-                  60,
-                );
+                showInRail("command", "ceo-approval");
               }}
             >
               📋 대표 할 일 <i>{todo}</i>
@@ -258,6 +283,7 @@ export default function Home() {
             selectedId={selectedId}
             onSelect={onSelect}
             onStart={start}
+            onGoHome={goHome}
             onApprove={approve}
             onDuty={onDuty}
             onPublish={() => void sendReport(false)}
@@ -315,6 +341,7 @@ function LiveView({
   selectedId,
   onSelect,
   onStart,
+  onGoHome,
   onApprove,
   onDuty,
   onPublish,
@@ -328,6 +355,7 @@ function LiveView({
   selectedId: string | null;
   onSelect: (agent: Agent) => void;
   onStart: () => void;
+  onGoHome: () => void;
   onApprove: () => void;
   onDuty: number;
   onPublish: () => void;
@@ -336,7 +364,31 @@ function LiveView({
 }) {
   const progress = Math.round((snap.phaseIndex / (PHASES.length - 1)) * 100);
   const ap = useAutopilot();
-  const top = ap.passed[0];
+  const top = ap.pick ?? ap.passed[0];
+  const paper = usePaper().status;
+  const urgentAlerts = ap.alerts.filter((a) => a.level === "bad" || a.level === "warn").length;
+
+  // 오른쪽 탭 — 마지막으로 본 탭을 기억 (저장이 막힌 브라우저면 그냥 첫 탭)
+  const [railTab, setRailTab] = useState<RailTab>("command");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rail-tab");
+      if (RAIL_TABS.some((t) => t.id === saved)) setRailTab(saved as RailTab);
+    } catch {
+      /* 무시 */
+    }
+    const open = (e: Event) => setRailTab((e as CustomEvent<RailTab>).detail);
+    window.addEventListener("rail-tab", open);
+    return () => window.removeEventListener("rail-tab", open);
+  }, []);
+  const pickRailTab = (id: RailTab) => {
+    setRailTab(id);
+    try {
+      localStorage.setItem("rail-tab", id);
+    } catch {
+      /* 무시 */
+    }
+  };
 
   return (
     <>
@@ -346,7 +398,7 @@ function LiveView({
           <h1>
             {COMPANY.titlePrefix} <em className="highlight">{COMPANY.titleAccent}</em>
           </h1>
-          <p>리서치 → 전략 설계 → 백테스트 검증 → 개발 → 운영까지, AI 팀이 자동매매 프로그램을 만들고 대표실로 보고합니다.</p>
+          <p>모의투자 점검 → 전략 설계 → 백테스트 검증 → 개발 → 운영까지, AI 팀이 자동매매 프로그램을 만들고 대표실로 보고합니다.</p>
         </div>
         <div className="live-clock">
           <span>SEOUL</span>
@@ -356,36 +408,46 @@ function LiveView({
       </header>
 
       <section className="live-bar">
-        <button className="btn btn-primary" onClick={onStart} disabled={snap.running}>
-          {snap.running ? "직원들이 일하는 중…" : snap.dayComplete ? "다시 출근시키기" : "오늘 업무 시작하기"}
-        </button>
+        {ap.onDuty ? (
+          <span className="duty-badge" title={ap.step}>
+            🟢 근무 중{ap.cycles ? ` · 점검 ${ap.cycles}회` : ""}
+          </span>
+        ) : (
+          <button className="btn btn-primary" onClick={onStart}>
+            오늘 업무 시작하기
+          </button>
+        )}
+        {ap.onDuty ? (
+          <button
+            className="btn btn-ghost"
+            onClick={onGoHome}
+            title={`퇴근하면 근무와 ${AUTOPILOT.reportEveryHours}시간 정기 보고가 멈춰요. 모의투자는 서버에서 계속 돌아가요.`}
+          >
+            🌙 퇴근
+          </button>
+        ) : null}
+        {ap.onDuty && ap.nextCheckAt ? (
+          <span className="next-report" title="잔고·모의투자·시세·전략 탐색·과적합 검사·적용 확인을 한 바퀴 돌아요">
+            다음 점검 {hm(ap.nextCheckAt)}
+          </span>
+        ) : null}
+        {ap.onDuty && ap.nextReportAt ? (
+          <span className="next-report" title="근무 중에는 정해진 간격마다 노션·디스코드로 보고서를 자동 발행해요">
+            다음 보고 {hm(ap.nextReportAt)}
+          </span>
+        ) : null}
         <button className="btn btn-ghost" onClick={() => engine.togglePause()}>
           {snap.paused ? "▶ 재생" : "⏸ 일시정지"}
         </button>
-        <div className="speed-wrap">
-          <span className="speed-label" title="시뮬레이션 전체(걷기·업무·대사)가 함께 빨라져요. 실제 외부 작업 속도와는 무관합니다.">
-            재생 속도
-          </span>
-          <div className="speed-group" role="group" aria-label="재생 속도">
-            {[1, 2, 4].map((value) => (
-              <button
-                key={value}
-                className={!snap.turbo && snap.speed === value ? "on" : ""}
-                onClick={() => engine.setSpeed(value)}
-                title={value === 1 ? "말풍선 읽기·화면녹화용" : value === 4 ? "결과만 빠르게" : "기본"}
-              >
-                {value}x
-              </button>
-            ))}
-            <button
-              className={`skip ${snap.turbo ? "on" : ""}`}
-              onClick={() => engine.skipToDecision()}
-              disabled={!snap.running || snap.approvalPending}
-              title="대표님이 결정할 일이 생길 때까지 단숨에 건너뜁니다"
-            >
-              {snap.turbo ? "건너뛰는 중…" : "⏭ 결정까지"}
-            </button>
-          </div>
+        <div className="speed-group" role="group" aria-label="건너뛰기">
+          <button
+            className={`skip ${snap.turbo ? "on" : ""}`}
+            onClick={() => engine.skipToDecision()}
+            disabled={!snap.running || snap.approvalPending}
+            title="대표님이 결정할 일이 생길 때까지 사무실 장면을 단숨에 건너뜁니다 (실제 탐색·모의투자 속도와는 무관)"
+          >
+            {snap.turbo ? "건너뛰는 중…" : "⏭ 결정까지"}
+          </button>
         </div>
         <button className={`btn btn-ghost ${follow ? "on" : ""}`} onClick={() => setFollow(!follow)}>
           🎥 자동 추적 {follow ? "ON" : "OFF"}
@@ -418,15 +480,29 @@ function LiveView({
         <OfficeWorld engine={engine} snap={snap} selectedId={selectedId} follow={follow} onSelect={onSelect} />
 
         <aside className="live-rail">
+          <nav className="rail-tabs" role="tablist" aria-label="오른쪽 패널">
+            {RAIL_TABS.map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={railTab === t.id}
+                className={railTab === t.id ? "on" : ""}
+                onClick={() => pickRailTab(t.id)}
+              >
+                {t.label}
+                {t.id === "command" && (snap.approvalPending || urgentAlerts > 0) ? <i className="rail-dot" /> : null}
+                {t.id === "trade" && paper?.strategy && paper.returnPct !== null ? (
+                  <small className={paper.returnPct >= 0 ? "up" : "down"}>{signedPct(paper.returnPct)}</small>
+                ) : null}
+              </button>
+            ))}
+          </nav>
+
+          {/* 숨긴 탭도 그대로 살려 둔다 — 모의투자·잔고 갱신과 알림이 멈추지 않게 */}
+          <div className="rail-pane" role="tabpanel" hidden={railTab !== "command"}>
           <AlertsPanel />
 
           <CeoConsole engine={engine} snap={snap} />
-
-          <BacktestPanel engine={engine} />
-
-          <BalancePanel engine={engine} />
-
-          <HistoryPanel />
 
           <section className="win rail-card" id="ceo-approval">
             <div className="win-bar">
@@ -437,10 +513,10 @@ function LiveView({
               {snap.approvalPending ? (
                 <>
                   <div className="approval-top">
-                    <span className="mini-badge yellow">{top ? "TOP 1 전략 · 오늘 탐색 결과" : "TOP 1 전략 · 예시"}</span>
+                    <span className="mini-badge yellow">{top ? "결재 전략 · 오늘 탐색 + 과적합 검사" : "결재 전략 · 탐색 결과 기다리는 중"}</span>
                     <span className="score blink">결재 대기</span>
                   </div>
-                  <h3>{top ? describe(top) : "BTC 20/60 이동평균 추세추종 + 손절 8%"}</h3>
+                  <h3>{top ? describe(top) : "검증·리스크팀이 조합을 돌리는 중이에요"}</h3>
                   <p>{ap.enabled ? "자동 운영 중 — 전략 탐색이 끝나면 자동으로 결재돼요." : "회의실에서 최아름·한도빈·김세리가 대표님 결재를 기다리고 있어요."}</p>
                   <div className="reason-list">
                     <span>① 백테스트 검증 통과</span>
@@ -466,7 +542,19 @@ function LiveView({
               )}
             </div>
           </section>
+          </div>
 
+          <div className="rail-pane" role="tabpanel" hidden={railTab !== "trade"}>
+            <PaperPanel engine={engine} />
+            <BacktestPanel engine={engine} />
+          </div>
+
+          <div className="rail-pane" role="tabpanel" hidden={railTab !== "assets"}>
+            <BalancePanel engine={engine} />
+            <HistoryPanel />
+          </div>
+
+          <div className="rail-pane" role="tabpanel" hidden={railTab !== "status"}>
           <section className="win rail-card feed-card">
             <div className="win-bar">
               <span>📡 live.feed</span>
@@ -520,10 +608,27 @@ function LiveView({
               ))}
             </div>
           </section>
+          </div>
         </aside>
       </section>
     </>
   );
+}
+
+const hm = (ms: number) => new Date(ms).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+
+const RAIL_TABS = [
+  { id: "command", label: "🧭 지휘" },
+  { id: "trade", label: "📝 매매" },
+  { id: "assets", label: "💰 자산" },
+  { id: "status", label: "📡 현황" },
+] as const;
+type RailTab = (typeof RAIL_TABS)[number]["id"];
+
+/** 오른쪽 탭을 열고 그 안의 패널로 화면을 옮긴다 (숨은 탭 안에 있으면 이동이 안 되므로) */
+function showInRail(tab: RailTab, elementId: string) {
+  window.dispatchEvent(new CustomEvent<RailTab>("rail-tab", { detail: tab }));
+  window.setTimeout(() => document.getElementById(elementId)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
 }
 
 const QUICK_ORDERS = [
@@ -534,7 +639,6 @@ const QUICK_ORDERS = [
   { label: "회의 소집", command: "전 부서 회의 소집" },
   { label: "지금 브리핑", command: "지금 브리핑 올라와" },
   { label: "집중 모드", command: "집중 모드" },
-  { label: "속도 올려", command: "속도 좀 올려줘" },
 ];
 
 function CeoConsole({ engine, snap }: { engine: Company; snap: Snapshot }) {
@@ -565,7 +669,7 @@ function CeoConsole({ engine, snap }: { engine: Company; snap: Snapshot }) {
   return (
     <section className="win rail-card console-card" id="ceo-console">
       <div className="win-bar">
-        <span>🎤 ceo.console — 대표 지시창</span>
+        <span title="대표 지시창">🎤 ceo.console</span>
         <span className="window-controls">—　▢　✕</span>
       </div>
       <div className="win-body console-body">
@@ -695,11 +799,11 @@ function BriefingModal({ snap, onClose }: { snap: Snapshot; onClose: () => void 
         </div>
         <div className="win-body">
           <p className="brief-date">{snap.clock} · 김세리 비서실장 최종 브리핑</p>
-          <h3>대표님, 오늘 트레이딩 데스크 업무가 정리됐어요.</h3>
+          <h3>대표님, 이번 점검이 정리됐어요.</h3>
           <ul>
             <li>
               <span className="dot green" />
-              완료 {snap.stats.done}팀 — 리서치·전략·검증·개발·학습·저장까지 마쳤어요
+              완료 {snap.stats.done}팀 — 감시·전략·검증·개발·학습·저장까지 마쳤어요
             </li>
             <li>
               <span className="dot green" />
@@ -712,7 +816,10 @@ function BriefingModal({ snap, onClose }: { snap: Snapshot; onClose: () => void 
           </ul>
           <div className="decision-box">
             <span className="tiny-label">오늘 대표님이 결정할 것</span>
-            <strong>없습니다. 실전 전환은 모의투자 결과 보고 결정하세요. 내일 07:00에 다시 출근할게요 📈</strong>
+            <strong>
+              없습니다. 실전 전환은 모의투자 결과 보고 결정하세요. 퇴근 버튼을 누르기 전까지 자리를 지키고, 보고서는{" "}
+              {AUTOPILOT.reportEveryHours}시간마다 올릴게요 📈
+            </strong>
           </div>
           <button className="btn btn-primary" onClick={onClose}>
             확인
@@ -757,6 +864,10 @@ function DashboardView({
   integrations: IntegrationStatus | null;
   publishResult: PublishResult | null;
 }) {
+  const ap = useAutopilot();
+  const pick = ap.pick ?? ap.passed[0];
+  const paper = usePaper().status;
+  const upbitState = useUpbit();
   // 서버가 알려준 실제 설정 상태로 표시한다 (연결됐다고 거짓 보고하지 않는다)
   const liveRows = integrations
     ? [
@@ -780,9 +891,30 @@ function DashboardView({
           tone: publishResult?.discord.ok ? "mint" : integrations.discord?.configured ? "yellow" : "lav",
           href: "",
         },
-        { name: "실시간 시세", status: integrations.instagram?.need ?? "연동 대기", tone: "lav", href: "" },
-        { name: "거래소 API", status: integrations.gmail?.need ?? "연동 대기", tone: "lav", href: "" },
-        { name: "계좌 내역", status: integrations.finance?.need ?? "자료 대기", tone: "lav", href: "" },
+        {
+          name: "실시간 시세",
+          status: !paper?.strategy
+            ? "모의투자 시작 전 (결재 후 연결)"
+            : paper.live.error
+              ? `오류 — ${paper.live.error}`
+              : paper.live.priceAt
+                ? "업비트 공개 시세 · 30초마다 수신"
+                : "확인 중",
+          tone: paper?.strategy && paper.live.priceAt && !paper.live.error ? "mint" : "lav",
+          href: "",
+        },
+        {
+          name: "거래소 API",
+          status: upbitState.configured ? "업비트 조회 전용 키 · 주문 기능 없음" : "미설정 (모의투자만)",
+          tone: upbitState.configured ? "mint" : "lav",
+          href: "",
+        },
+        {
+          name: "계좌 내역",
+          status: upbitState.balance?.ok ? "업비트 잔고 조회 성공" : (integrations.finance?.need ?? "자료 대기"),
+          tone: upbitState.balance?.ok ? "mint" : "lav",
+          href: "",
+        },
       ]
     : [];
   const rows = [...integrations2Static, ...liveRows];
@@ -802,11 +934,11 @@ function DashboardView({
             <h1>
               오늘 트레이딩 데스크가 어떻게 움직이는지 <em className="highlight">한눈에</em>
             </h1>
-            <p>AI는 도구, 실전 결정은 대표님. 12개 팀 32명의 리서치부터 백테스트·개발·운영·브리핑까지 한 흐름으로 관리해요.</p>
+            <p>AI는 도구, 실전 결정은 대표님. 12개 팀 32명의 모의투자 감시부터 백테스트·개발·운영·브리핑까지 한 흐름으로 관리해요.</p>
           </div>
           <div className="hero-actions">
-            <button className="btn btn-primary" onClick={onStart} disabled={snap.running}>
-              {snap.running ? "AI 팀원들이 근무 중…" : "오늘 업무 시작하기"}
+            <button className="btn btn-primary" onClick={onStart} disabled={ap.onDuty}>
+              {ap.onDuty ? "AI 팀원들이 근무 중… (퇴근 버튼 전까지)" : "오늘 업무 시작하기"}
             </button>
             <span className="trust-copy">실제 주문·자금 이동은 하지 않아요. 실전 전환은 대표가 직접</span>
           </div>
@@ -940,15 +1072,15 @@ function DashboardView({
               </div>
               <div className="win-body approval-body">
                 <div className="approval-top">
-                  <span className="mini-badge yellow">TOP 1 전략</span>
-                  <span className="score">92점</span>
+                  <span className="mini-badge yellow">결재 전략</span>
+                  <span className="score">{pick ? VERDICT_LABEL[pick.verdict] : "탐색 전"}</span>
                 </div>
-                <h3>
-                  BTC 20/60 이동평균
-                  <br />
-                  추세추종 + 손절 8%
-                </h3>
-                <p>단기 이평이 장기 이평을 넘으면 사고, 내려가면 팔아요. 매수가 대비 -8%면 즉시 손절합니다. 백테스트 패널에서 직접 다시 돌려볼 수 있어요.</p>
+                <h3>{pick ? describe(pick) : "오늘 전략 탐색 전이에요"}</h3>
+                <p>
+                  {pick
+                    ? `단기 이평이 장기 이평을 넘으면 사고, 내려가면 팔아요. 산 값 대비 -${Math.round(pick.stop * 100)}%면 즉시 손절합니다.${ap.pickRobust ? ` 주변 조합 ${ap.pickRobust.ok}/${ap.pickRobust.total} 버팀.` : ""}`
+                    : "출근하면 검증·리스크팀이 조합을 돌리고, AI 모델팀이 과적합 검사를 한 전략이 여기 올라와요."}
+                </p>
                 <button
                   className={`btn approve-button ${snap.approved ? "approved" : ""}`}
                   onClick={onApprove}
@@ -966,7 +1098,7 @@ function DashboardView({
               </div>
               <div className="win-body">
                 <p className="brief-date">2026.07.26 · {snap.clock} 현재</p>
-                <h3>{snap.dayComplete ? "대표님, 오늘 업무가 정리됐어요." : "대표님, 현재 진행 상황이에요."}</h3>
+                <h3>{snap.dayComplete ? "대표님, 이번 점검이 정리됐어요." : "대표님, 현재 진행 상황이에요."}</h3>
                 <ul>
                   <li>
                     <span className="dot green" />
