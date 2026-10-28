@@ -29,9 +29,19 @@ type TargetResult = { ok: boolean; status: "sent" | "unconfigured" | "failed"; d
 
 const NOTION_VERSION = "2022-06-28";
 
+/** 보고서가 쌓이는 Notion 표 주소 (DB ID는 비밀값이 아님 — 토큰 없이는 열람 권한이 없다) */
+function notionDbUrl(env: PublishEnv) {
+  const id = env.NOTION_BRIEFING_DB?.replace(/-/g, "").match(/[0-9a-f]{32}/i)?.[0];
+  return id ? `https://www.notion.so/${id}` : undefined;
+}
+
 export function integrationStatus(env: PublishEnv) {
   return {
-    notion: { configured: Boolean(env.NOTION_TOKEN && env.NOTION_BRIEFING_DB), label: "Notion 저장" },
+    notion: {
+      configured: Boolean(env.NOTION_TOKEN && env.NOTION_BRIEFING_DB),
+      label: "Notion 저장",
+      url: notionDbUrl(env),
+    },
     discord: { configured: Boolean(env.DISCORD_WEBHOOK_URL), label: "Discord 전송" },
     // 아래 3개는 자격증명을 받는 즉시 같은 방식으로 붙는다
     instagram: { configured: false, label: "실시간 시세", need: "시세 API 연동 (백테스트는 과거 데이터로 작동 중)" },

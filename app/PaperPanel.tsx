@@ -4,10 +4,22 @@ import { useEffect } from "react";
 import { AUTOPILOT } from "../company.config";
 import { describe, useAutopilot } from "./autopilot";
 import { coinLabel, TARGET } from "./backtestLink";
+import PaperChart from "./PaperChart";
 import type { Company } from "./game/sim";
-import { applyPaperStrategy, pausePaper, resumePaper, startPaperPolling, strategyText, usePaper } from "./paperLink";
+import {
+  applyPaperStrategy,
+  pausePaper,
+  resumePaper,
+  startPaperPolling,
+  strategyText,
+  usePaper,
+  type PaperStrategy,
+} from "./paperLink";
 import { qtyText, signedPct, won } from "./upbitLink";
 import "./paper.css";
+
+const sameStrategy = (a: PaperStrategy | null | undefined, b: PaperStrategy) =>
+  !!a && a.market === b.market && a.interval === b.interval && a.fast === b.fast && a.slow === b.slow && Math.abs(a.stop - b.stop) < 1e-9;
 
 const tone = (v: number | null | undefined) => (v === null || v === undefined || v === 0 ? undefined : v > 0 ? "up" : "down");
 const hhmm = (iso: string) =>
@@ -52,6 +64,12 @@ export default function PaperPanel({ engine }: { engine: Company }) {
       { monthly: top.monthly, mdd: top.mdd },
     );
 
+  // 결재 전략이 이미 모의투자에 들어갔는지 (돌고 있음 / 코인 판 뒤 교체 대기 / 아직)
+  const topStrategy: PaperStrategy | null = top
+    ? { market: top.market, interval: AUTOPILOT.interval, fast: top.fast, slow: top.slow, stop: top.stop }
+    : null;
+  const applied = topStrategy && sameStrategy(s?.strategy, topStrategy) ? "running" : topStrategy && sameStrategy(s?.pending, topStrategy) ? "pending" : null;
+
   const live = s?.live;
   const holding = s ? s.coins > 0 : false;
 
@@ -91,6 +109,8 @@ export default function PaperPanel({ engine }: { engine: Company }) {
               <b>{strategyText(s.strategy)}</b>
               {s.pending ? <small>다음 전략 대기: {strategyText(s.pending)} (가상 보유분을 판 뒤 교체)</small> : null}
             </div>
+
+            <PaperChart s={s} />
 
             <div className="pp-price">
               <span>{coinLabel(s.strategy.market)} 현재가</span>
@@ -140,10 +160,19 @@ export default function PaperPanel({ engine }: { engine: Company }) {
           </>
         ) : null}
 
-        {top ? (
-          <button className="btn pp-apply" onClick={applyTop} disabled={busy} title={describe(top)}>
-            오늘 결재 전략을 모의투자에 적용
-          </button>
+        {top && topStrategy ? (
+          applied === "running" ? (
+            <p className="pp-applied">✅ 오늘 결재 전략이 모의투자에 적용돼 돌고 있어요 — {strategyText(topStrategy)}</p>
+          ) : applied === "pending" ? (
+            <p className="pp-applied wait">⏳ 오늘 결재 전략 적용 예약됨 — 가상 보유 코인을 판 뒤 바로 바뀌어요</p>
+          ) : (
+            <div className="pp-apply-box">
+              <small>오늘 결재 전략: {describe(top)}</small>
+              <button className="btn pp-apply" onClick={applyTop} disabled={busy}>
+                {busy ? "적용 중…" : "이 전략을 모의투자에 적용"}
+              </button>
+            </div>
+          )
         ) : null}
 
         {s?.trades.length ? (

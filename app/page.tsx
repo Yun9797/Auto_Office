@@ -289,6 +289,7 @@ export default function Home() {
             onPublish={() => void sendReport(false)}
             publishBusy={publishState.busy}
             publishResult={publishState.result}
+            reportsUrl={(integrations?.notion as { url?: string } | undefined)?.url}
           />
         ) : (
           <DashboardView
@@ -347,6 +348,7 @@ function LiveView({
   onPublish,
   publishBusy,
   publishResult,
+  reportsUrl,
 }: {
   engine: Company;
   snap: Snapshot;
@@ -361,9 +363,18 @@ function LiveView({
   onPublish: () => void;
   publishBusy: boolean;
   publishResult: PublishResult | null;
+  reportsUrl?: string;
 }) {
-  const progress = Math.round((snap.phaseIndex / (PHASES.length - 1)) * 100);
   const ap = useAutopilot();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 10_000);
+    return () => window.clearInterval(id);
+  }, []);
+  // 다음 정기 보고까지 남은 시간 게이지 — 보고 간격 중 지난 만큼 차오른다
+  const reportMs = AUTOPILOT.reportEveryHours * 3600_000;
+  const reportLeft = ap.onDuty && ap.nextReportAt ? Math.max(0, ap.nextReportAt - now) : null;
+  const reportFill = reportLeft === null ? 0 : Math.round(((reportMs - reportLeft) / reportMs) * 100);
   const top = ap.pick ?? ap.passed[0];
   const paper = usePaper().status;
   const urgentAlerts = ap.alerts.filter((a) => a.level === "bad" || a.level === "warn").length;
@@ -402,8 +413,9 @@ function LiveView({
         </div>
         <div className="live-clock">
           <span>SEOUL</span>
-          <b>{snap.clock}</b>
-          <small>{snap.phase}</small>
+          <SeoulClock />
+          {/* 출근 장면 중에는 장면 단계, 그 뒤로는 자동 운영이 실제로 하고 있는 일 */}
+          <small>{snap.running ? snap.phase : ap.onDuty ? ap.step : ap.step === "퇴근" ? "퇴근 · 모의투자는 계속" : "출근 전"}</small>
         </div>
       </header>
 
@@ -431,11 +443,6 @@ function LiveView({
             다음 점검 {hm(ap.nextCheckAt)}
           </span>
         ) : null}
-        {ap.onDuty && ap.nextReportAt ? (
-          <span className="next-report" title="근무 중에는 정해진 간격마다 노션·디스코드로 보고서를 자동 발행해요">
-            다음 보고 {hm(ap.nextReportAt)}
-          </span>
-        ) : null}
         <button className="btn btn-ghost" onClick={() => engine.togglePause()}>
           {snap.paused ? "▶ 재생" : "⏸ 일시정지"}
         </button>
@@ -460,12 +467,32 @@ function LiveView({
         >
           {publishBusy ? "발행 중…" : "📤 보고 발행"}
         </button>
-        <div className="live-progress">
+        {reportsUrl ? (
+          <a
+            className="btn btn-ghost"
+            href={reportsUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="지금까지 발행된 보고서가 쌓인 Notion '일일 보고서' 표를 새 탭으로 열어요"
+          >
+            📒 보고서 보기
+          </a>
+        ) : (
+          <button className="btn btn-ghost" disabled title="Notion 연동(.dev.vars 의 NOTION_TOKEN · NOTION_BRIEFING_DB)을 설정하면 열 수 있어요">
+            📒 보고서 보기
+          </button>
+        )}
+        <div
+          className="live-progress"
+          title={`근무 중에는 ${AUTOPILOT.reportEveryHours}시간마다 노션·디스코드로 보고서를 자동 발행해요. 게이지가 다 차면 발행!`}
+        >
           <span>
-            {snap.phase} · {progress}%
+            {reportLeft === null
+              ? "📤 다음 보고 · 출근하면 시작"
+              : `📤 다음 보고까지 ${left(reportLeft)} (${hm(ap.nextReportAt!)})`}
           </span>
           <i>
-            <b style={{ width: `${progress}%` }} />
+            <b style={{ width: `${reportFill}%` }} />
           </i>
         </div>
         <div className="live-counts">
@@ -616,6 +643,26 @@ function LiveView({
 }
 
 const hm = (ms: number) => new Date(ms).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+/** 오른쪽 위 시계 — 사무실 장면 시간이 아니라 실제 한국 시간 */
+function SeoulClock() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  return (
+    <b title="지금 한국 시간">
+      {new Date(now).toLocaleTimeString("ko-KR", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", hour12: false })}
+    </b>
+  );
+}
+
+const left = (ms: number) => {
+  const min = Math.ceil(ms / 60_000);
+  if (min <= 0) return "곧";
+  const h = Math.floor(min / 60);
+  return h ? `${h}시간 ${min % 60}분` : `${min}분`;
+};
 
 const RAIL_TABS = [
   { id: "command", label: "🧭 지휘" },

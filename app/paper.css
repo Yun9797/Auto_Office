@@ -28,6 +28,40 @@
 
 .pp-actions { display: flex; gap: 8px; }
 .pp-actions .btn, .pp-apply { width: 100%; min-height: 36px; }
+/* 실시간 차트 (PaperChart.tsx) */
+.pc-box { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--pink-line); border-radius: 4px; background: #04070d; }
+.pc-wait { color: var(--ink-soft); font-size: 11px; }
+.pc-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pc-head b { font-family: "JetBrains Mono", monospace; font-size: 15px; }
+.pc-head small { margin-left: auto; color: var(--ink-soft); font-size: 11px; }
+.pc-head .up, .pc-legend .buy { color: var(--up); }
+.pc-head .down, .pc-legend .sell { color: var(--down); }
+.pc-live { display: inline-flex; align-items: center; gap: 4px; color: var(--down); font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+.pc-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--down); animation: pc-blink 1.2s ease-in-out infinite; }
+@keyframes pc-blink { 50% { opacity: .2; } }
+.pc-svg { display: block; width: 100%; height: auto; }
+.pc-price { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.pc-fast { fill: none; stroke: var(--up); stroke-width: 1.2; opacity: .85; }
+.pc-slow { fill: none; stroke: #ffc94d; stroke-width: 1.2; opacity: .85; }
+.pc-entry { stroke: var(--pink-deep); stroke-dasharray: 4 3; }
+.pc-stop { stroke: var(--down); stroke-dasharray: 2 3; }
+.pc-now { stroke: var(--ink-soft); stroke-dasharray: 1 3; }
+.pc-dot { fill: var(--ink); animation: pc-blink 1.2s ease-in-out infinite; }
+.pc-buy { fill: var(--up); }
+.pc-sell { fill: var(--down); }
+.pc-tag { font-size: 9px; font-weight: 700; fill: var(--ink-soft); }
+.pc-tag.stop { fill: var(--down); }
+.pc-tag.entry { fill: var(--pink-deep); }
+.pc-legend { display: flex; gap: 8px; flex-wrap: wrap; font-size: 10px; color: var(--ink-soft); }
+.pc-legend .price { color: var(--ink); }
+.pc-legend .fast { color: var(--up); }
+.pc-legend .slow { color: #ffc94d; }
+.pc-foot { color: var(--ink-soft); font-size: 10px; }
+
+.pp-apply-box { display: grid; gap: 6px; }
+.pp-apply-box small { color: var(--ink-soft); font-size: 11px; }
+.pp-applied { margin: 0; padding: 8px 10px; border: 1px solid var(--up); border-radius: 4px; color: var(--up); font-size: 11px; font-weight: 700; }
+.pp-applied.wait { border-color: #ffc94d; background: var(--yellow); color: #ffc94d; }
 
 .pp-table { width: 100%; border-collapse: collapse; font-size: 11px; }
 .pp-table th, .pp-table td { padding: 4px 6px; border-bottom: 1px dashed var(--pink-line); text-align: right; }

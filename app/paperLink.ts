@@ -133,7 +133,7 @@ let poller: number | null = null;
 export function startPaperPolling(engine: Company) {
   void refreshPaper(engine);
   if (poller !== null) window.clearInterval(poller);
-  poller = window.setInterval(() => void refreshPaper(engine), 15_000);
+  poller = window.setInterval(() => void refreshPaper(engine), 5_000);
   return () => {
     if (poller !== null) window.clearInterval(poller);
     poller = null;

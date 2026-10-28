@@ -8,6 +8,7 @@ import type { Plugin } from "vite";
  *   GET  /api/paper/status    현재가 · 이동평균 신호 · 가상 보유 · 가상 자산 · 최근 가상 거래
  *   POST /api/paper/strategy  전략 적용 {market, interval, fast, slow, stop, capital, expect: {monthly, mdd}}
  *                             가상으로 들고 있는 코인이 있으면 팔릴 때까지 "다음 전략"으로 대기
+ *   GET  /api/paper/chart     📝 패널 실시간 차트 — 최근 확정 봉 종가 + 현재가 + 마지막 판단 시각
  *   GET  /api/paper/market?market=KRW-BTC  현재가·24시간 변동·투자유의·응답 시간 (시세 데이터팀·거래소 연동팀 점검)
  *   POST /api/paper/pause     가상 거래 멈춤 (시세는 계속 받음)
  *   POST /api/paper/resume    다시 시작
@@ -334,6 +335,34 @@ export function paper(): Plugin {
         };
       };
 
+      // 📝 패널 실시간 차트용 — 확정 봉은 1분에 한 번, 현재가는 2초에 한 번만 업비트에 묻는다
+      let barCache: { key: string; at: number; bars: Candle[] } | null = null;
+      let tickCache: { market: string; at: number; price: number; tradedAt: string } | null = null;
+      const CHART_BARS = 60;
+      const chart = async () => {
+        const s = state.strategy;
+        if (!s) return { ok: true, strategy: null };
+        const key = JSON.stringify(s);
+        if (!barCache || barCache.key !== key || Date.now() - barCache.at > 60_000) {
+          barCache = { key, at: Date.now(), bars: await confirmedCloses(s, s.slow + CHART_BARS) };
+        }
+        if (!tickCache || tickCache.market !== s.market || Date.now() - tickCache.at > 2_000) {
+          const [t] = (await getJson(`${API}/ticker?markets=${s.market}`)) as { trade_price: number; timestamp: number }[];
+          tickCache = { market: s.market, at: Date.now(), price: t.trade_price, tradedAt: new Date(t.timestamp).toISOString() };
+        }
+        return {
+          ok: true,
+          strategy: s,
+          barMs: BAR_MS[s.interval],
+          bars: barCache.bars.map((c) => ({ t: `${c.candle_date_time_utc}Z`, c: c.trade_price })),
+          price: tickCache.price,
+          priceAt: tickCache.tradedAt,
+          /** 서버가 마지막으로 판단한 시각 — 다음 판단은 이로부터 30초 뒤 */
+          decidedAt: live.priceAt,
+          decideEveryMs: POLL_MS,
+        };
+      };
+
       server.middlewares.use("/api/paper", (req, res) => {
         const send = (code: number, body: unknown) => {
           res.statusCode = code;
@@ -345,6 +374,12 @@ export function paper(): Plugin {
         const route = (req.url ?? "/").split("?")[0];
 
         if (req.method === "GET" && route === "/status") return send(200, status());
+        if (req.method === "GET" && route === "/chart") {
+          void chart()
+            .then((r) => send(200, r))
+            .catch((error) => send(502, { ok: false, error: `차트 시세를 못 받았어요: ${(error as Error).message}` }));
+          return;
+        }
         if (req.method === "GET" && route === "/market") {
           const market = new URL(req.url ?? "/", "http://local").searchParams.get("market") ?? "";
           if (!/^KRW-[A-Z0-9]{1,15}$/.test(market)) return send(400, { ok: false, error: "KRW-BTC 같은 티커로 주세요" });
